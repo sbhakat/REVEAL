@@ -68,7 +68,7 @@ reveal featurize --manifest pairs.txt --stride 10 --out-prefix out/rg
 ```bash
 reveal reduce fpca     -i out/rg_g.npz -n 2                  -o out/fpca
 reveal reduce sfa      -i out/rg_g.npz -n 2 --tau 1          -o out/sfa
-reveal reduce tae      -i out/rg_g.npz -n 1 2 --lag 1 10 50  -o out/tae        # scan -> out/tae/tau*_dim*/
+reveal reduce tae      -i out/rg_g.npz -n 1 2 --lag 1 10  -o out/tae        # scan -> out/tae/tau*_dim*/
 ```
 
 | method   | what it does | backends |
@@ -125,14 +125,10 @@ Outputs: `projection.npz`, plus `tae_gvec.py`'s files: `tae_latent.npy/.pkl`, `t
 `bottleneck_scatter.png`, `lightning_logs/` from timelaggedcv), and `export_feature_weights.py`'s
 `CV_file{n}.yaml` and `Feature_weights_{n}_labeled.png`.
 
-Not included: mdml's `train-vae` command line uses `TimeLaggedCV.DEFAULT` (teacher–student
-distillation, attention-based CV networks, target 10 features). That pipeline is built for dihedral
-features (it needs dihedral descriptor pickles), and it is not what produced your G-vector results.
-
 ## 3. MSM weights (optional)
 
 ```bash
-reveal msm -i TAE=out/tae/tau10_dim2/projection.npz --k 200 --lag 10 -o out/msm
+reveal msm -i FPCA=out/fpca/projection.npz --k 200 --lag 10 --its-lags 1 2 5 10 20 50 -o out/msm_fpca
 ```
 
 MSM engine: **deeptime** (tested with 0.4.5). REVEAL calls `deeptime.clustering.KMeans`
@@ -166,6 +162,9 @@ reveal pwcs -i CV=cv1_cv2.npz -i FPCA=out/fpca/projection.npz --weights out/msm/
 
 # any column(s) of any dataset: path:cols
 reveal pwcs -i TAE=out/tae/tau10_dim2/projection.npz:0 -i CV=cv1_cv2.npz:0,1 -o out/pwcs_mix
+
+# MSM-weighted PWCS using FPCA
+reveal pwcs -i FPCA=out/fpca/projection.npz --weights out/msm_fpca/msm_weights.npz -o out/pwcs_fpca 
 ```
 
 * **Feature sets.** `--mode joint` (default) makes each `-i` one set, 1D or 2D. `--mode separate`
