@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reveal-rna"
+version = "0.1.0"
+description = "REVEAL: RNA Ensemble Validation and Exploration with AI-guided Landscapes (G/R-vector featurization, FPCA/SFA/TAE, MSM weighting, PWCS)"
+requires-python = ">=3.9"
+# One install gives everything. sklearn-sfa (with mdml's tau patch) and mdml's timelaggedcv are
+# bundled in reveal/_vendor (see reveal/_vendor/README.md), so they are not listed here.
+dependencies = [
+    "numpy>=1.22",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "mdtraj",
+    "deeptime",            # MSM (k-means + Bayesian/ML MSM, per-frame weights)
+    "scikit-fda",          # FPCA backend (default)
+    "multimethod<1.12",    # scikit-fda 0.10 breaks with newer multimethod on Python 3.13
+    # bundled timelaggedcv (TAE) needs:
+    "torch",
+    "pytorch_lightning",
+    "addict",
+    "pandas",
+    "ruamel.yaml",
+    "h5py",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+reveal = "reveal.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["reveal*"]
+
+[tool.setuptools.package-data]
+"reveal._vendor" = ["README.md"]
+"reveal._vendor.timelaggedcv" = ["LICENSE"]
+"reveal._vendor.sksfa" = ["LICENSE"]
