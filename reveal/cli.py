@@ -157,14 +157,13 @@ def add_reduce(sub):
                    help="sksfa (sklearn-sfa) or native (NumPy re-implementation)")
     q.add_argument("--cross-boundaries", action="store_true",
                    help="difference the concatenated frames across trajectory boundaries "
-                        "(exactly sfa_gvec.py; legacy)")
+                        "(legacy behaviour)")
 
     q = rs.add_parser("tae", formatter_class=FMT,
-                      help="time-lagged autoencoder (mdml timelaggedcv, as in tae_gvec.py)",
-                      description="Time-lagged CV-autoencoder from mdml's timelaggedcv package, run "
-                                  "exactly as tae_gvec.py. Defaults are tae_gvec.py's settings.")
+                      help="time-lagged autoencoder (mdml's timelaggedcv)",
+                      description="Time-lagged CV-autoencoder from mdml's timelaggedcv package.")
     common(q, lagged=True)
-    t = q.add_argument_group("training (tae_gvec.py defaults)")
+    t = q.add_argument_group("training")
     t.add_argument("--target-n-feat", type=int, default=30, help="active features to keep per CV")
     t.add_argument("--max-steps", type=int, default=1500)
     t.add_argument("--max-rounds", type=int, default=2, help="max sparsity rounds")
@@ -175,13 +174,13 @@ def add_reduce(sub):
     t.add_argument("--lr", type=float, default=1e-3)
     t.add_argument("--weight-decay", type=float, default=0.1)
     t.add_argument("--seed", type=int, default=0,
-                   help="seed torch/numpy/random before training (tae_gvec.py was unseeded)")
-    a = q.add_argument_group("architecture (tae_gvec.py defaults)")
+                   help="seed torch/numpy/random before training (for reproducibility)")
+    a = q.add_argument_group("architecture")
     a.add_argument("--cv-width", type=int, default=50, help="width of each CV network")
     a.add_argument("--cv-depth", type=int, default=4, help="layers of each CV network")
     a.add_argument("--width", type=int, default=200, help="decoder width")
     a.add_argument("--n-res-blocks", type=int, default=6, help="decoder blocks")
-    a.add_argument("--residual", action="store_true", help="residual decoder blocks (off in tae_gvec.py)")
+    a.add_argument("--residual", action="store_true", help="residual decoder blocks (off by default)")
     a.add_argument("--sigma-bin", type=float, default=5, help="decoder input noise (in bins of 100)")
     a.add_argument("--sigma-feat-mask", type=float, default=1.0, help="noise on masked-out features")
     a.add_argument("--vamp-loss", default="VAMP2", choices=["VAMP2", "VAMP1", "VAMPE"])

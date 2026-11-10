@@ -1,15 +1,16 @@
 """
 TAE = the time-lagged CV-autoencoder from mdml's `timelaggedcv` package.
 
-This reproduces tae_gvec.py (the script that produced results/tau*_dim*):
-same timelaggedcv config.yaml layout, same CV_autoencoder construction, same
+This is the reference TAE training procedure (see tests/legacy_tae_gvec.py
+for the frozen regression-test copy it reproduces bit-for-bit): same
+timelaggedcv config.yaml layout, same CV_autoencoder construction, same
 CVEstimator.fit_routine (pretrain -> sparsity rounds until each CV keeps
 target_n_feat features -> unconstrained retrain), same predictions
 (estimate_cv_from_dataset with mask noise switched off) and the same kernel
 weights (net.get_kernel). It also writes CV_file{n}.yaml and the
-correctly labelled Feature_weights_{n}_labeled.png, as export_feature_weights.py did.
+correctly labelled Feature_weights_{n}_labeled.png.
 
-All defaults are tae_gvec.py's values. The network is:
+The network is:
   one CV_NN per CV:   ReLU feature mask -> Linear(p, cv_width) -> Tanh ->
                       (cv_depth-1) x [Linear(cv_width, cv_width) -> Tanh] -> Linear(cv_width, 1)
   decoder:            Linear(n_cv, width) -> ELU -> n_res_blocks x [Linear(width, width) -> ELU]
@@ -32,7 +33,7 @@ import sys
 
 import numpy as np
 
-# tae_gvec.py settings (= defaults of `reveal reduce tae`)
+# reference training settings (= defaults of `reveal reduce tae`)
 TAE_GVEC_DEFAULTS = dict(
     target_n_feat=30, max_steps=1500, max_rounds=2, patience=2, step_lam=0.2, batch_size=1024,
     valid_ratio=0.2, lr=1e-3, weight_decay=0.1,
@@ -62,7 +63,7 @@ def import_timelaggedcv(tlcv_path=None):
 
 def run_tlcv(trajs, feature_names, out_dir, n_components=2, lag=1, seed=0, tlcv_path=None,
              export_cv_files=True, top_k=30, **overrides):
-    """Train the timelaggedcv TAE exactly as tae_gvec.run_one does.
+    """Train the timelaggedcv TAE using the reference procedure (see module docstring).
 
     Returns (Z, W, info): latent CVs (n_frames, n_components), kernel weights
     (n_components, n_features), run information.
@@ -85,12 +86,12 @@ def run_tlcv(trajs, feature_names, out_dir, n_components=2, lag=1, seed=0, tlcv_
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
     cache = os.path.join(out_dir, "features_cache.pkl")
-    with open(cache, "wb") as f:   # same on-disk format as tae_gvec.load_and_cache_gvectors
+    with open(cache, "wb") as f:   # same on-disk format as the reference implementation's feature cache
         pickle.dump([np.ascontiguousarray(t, dtype=np.float32) for t in trajs], f, protocol=4)
     n_feat = trajs[0].shape[1]
     feature_names = np.asarray(feature_names)
 
-    if seed is not None:           # tae_gvec.py itself is unseeded; REVEAL seeds for reproducibility
+    if seed is not None:           # the reference implementation was unseeded; REVEAL seeds for reproducibility
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
@@ -98,7 +99,7 @@ def run_tlcv(trajs, feature_names, out_dir, n_components=2, lag=1, seed=0, tlcv_
     cwd = os.getcwd()
     try:
         os.chdir(out_dir)
-        # ---- tae_gvec.build_config -------------------------------------------
+        # ---- build the timelaggedcv config -----------------------------------
         feat_list = [{"feature": "gvector", "name": str(n), "transform": "raw", "residues": []}
                      for n in feature_names]
         idx = np.arange(n_feat)
@@ -115,7 +116,7 @@ def run_tlcv(trajs, feature_names, out_dir, n_components=2, lag=1, seed=0, tlcv_
             "skip": 1,
         }, "config.yaml")
 
-        # ---- tae_gvec.run_one ------------------------------------------------
+        # ---- train -------------------------------------------------------------
         print(f"\n=== Training TAE (timelaggedcv {getattr(tlcv, '__file__', '')}): "
               f"tau={lag}, latent_dim={n_components} ===")
         dataset = CV_timelagged(lag)
@@ -151,7 +152,7 @@ def run_tlcv(trajs, feature_names, out_dir, n_components=2, lag=1, seed=0, tlcv_
         print(f"Active features per CV (target {o['target_n_feat']}): {n_active}")
         est.save("model_final.pt")
 
-        # ---- export_feature_weights.py ---------------------------------------
+        # ---- export native CV_file{n}.yaml + labelled feature-weight plots -----
         if export_cv_files:
             lo, hi = Z.min(0), Z.max(0)
             rel = (hi - lo) * 0.1

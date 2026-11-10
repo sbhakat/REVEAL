@@ -49,12 +49,12 @@ def run_sfa(ds: Dataset, out_dir: str, n_components=2, tau=1, backend="sksfa",
 
 
 def run_tae(ds: Dataset, out_dir: str, n_components=2, lag=1, top_k=20, seed=0, tlcv_path=None, **kw):
-    """TAE with mdml's timelaggedcv, reproducing tae_gvec.py (see reduce/tlcv.py)."""
+    """TAE with mdml's timelaggedcv (see reduce/tlcv.py for the training procedure)."""
     from .tlcv import run_tlcv
     os.makedirs(out_dir, exist_ok=True)
     Z, W, info = run_tlcv(ds.trajs, ds.names(), out_dir, n_components, lag, seed=seed,
                           tlcv_path=tlcv_path, top_k=max(top_k, 30), **kw)
-    # tae_gvec.py output names, alongside REVEAL's standard projection.npz
+    # legacy output names, alongside REVEAL's standard projection.npz
     np.save(os.path.join(out_dir, "tae_latent.npy"), Z)
     with open(os.path.join(out_dir, "tae_latent.pkl"), "wb") as f:
         pickle.dump({"data": Z, "tau": lag, "n_cv": n_components, "stride": ds.frame_stride}, f)

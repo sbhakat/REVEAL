@@ -54,7 +54,7 @@ reveal featurize --manifest pairs.txt --stride 10 --out-prefix out/rg
 
 * Ring center = mean of N1, C2, N3, C4, C5, C6 (shared by A/G/C/U). `R_ij = c_j − c_i`, and
   `G_ij = [sin(γ|r|) r̂, 1 + cos(γ|r|)]` for `|r| < r_c`, with `γ = π/r_c` (Bottaro et al. 2014).
-  Only i<j pairs are stored. `--r-cutoff` defaults to 15 Å (the TAR calibration in `rg_vectors.py`).
+  Only i<j pairs are stored. `--r-cutoff` defaults to 15 Å, the value calibrated against HIV-1 TAR.
 * `--stride N` keeps every Nth frame. Frames are read in chunks (`--chunk`) and only ring atoms are
   read from disk, so long trajectories never have to fit in memory.
 * With per-trajectory topologies, ring atoms are resolved separately for each PDB, so atom order
@@ -73,9 +73,9 @@ reveal reduce tae      -i out/rg_g.npz -n 1 2 --lag 1 10  -o out/tae        # sc
 
 | method   | what it does | backends |
 |----------|--------------|----------|
-| FPCA     | Functional PCA over the feature-index grid, as in `fpca_gvec.py`; no lag time | **`skfda`** (default, scikit-fda `FPCA`) or `native` (NumPy, identical results) |
-| SFA      | Slow feature analysis at lag τ, as in `sfa_gvec.py` | **`sksfa`** (default; bundled sklearn-sfa with mdml's tau patch; see below) or `native` (NumPy) |
-| TAE      | mdml's time-lagged CV-autoencoder (`timelaggedcv`), run exactly as `tae_gvec.py` | bundled mdml `timelaggedcv` |
+| FPCA     | Functional PCA over the feature-index grid; no lag time | **`skfda`** (default, scikit-fda `FPCA`) or `native` (NumPy, identical results) |
+| SFA      | Slow feature analysis at lag τ | **`sksfa`** (default; bundled sklearn-sfa with mdml's tau patch; see below) or `native` (NumPy) |
+| TAE      | mdml's time-lagged CV-autoencoder (`timelaggedcv`) | bundled mdml `timelaggedcv` |
 
 Each run writes `projection.npz` (input for `msm` and `pwcs`), `<method>_weights.npy/.pkl`
 (n_components × n_features), `<method>_top_features.csv/.png`, `<method>_latent.png`,
@@ -98,32 +98,33 @@ route by case:
 |---|---|---|
 | τ = 1, equal-length trajectories | `fit(X)` with `batch_size` = trajectory length (sksfa's standard method) | respected |
 | τ > 1 or unequal lengths | sksfa's whitening (PCA `whiten=True`, drop directions with explained-variance ratio ≤ 1e-15), then `partial()` once per lag-τ sub-series `x[o::τ]` of each trajectory, then sksfa's generalized eigensolver | respected, exact lag τ |
-| `--cross-boundaries` | `fit(X, tau)` on concatenated frames: exactly `sfa_gvec.py` with mdml's sksfa | crossed (legacy) |
+| `--cross-boundaries` | `fit(X, tau)` on concatenated frames, with mdml's sksfa | crossed (legacy) |
 
 All routes reproduce native SFA on full-rank data, and `--cross-boundaries` reproduces a direct
 `sksfa.SFA(n).fit(X, tau=τ)` call exactly. The route used is printed and saved in `info.json`.
 (mdml's patch only changes the non-batch path, so `fit(..., batch_size=...)` there still uses lag 1.
 REVEAL never combines `batch_size` with τ > 1.)
 
-**TAE (mdml timelaggedcv).** REVEAL runs the same code path as `tae_gvec.py`, the script behind
-`results/tau*_dim*`. It writes the same timelaggedcv `config.yaml` and builds the same
+**TAE (mdml timelaggedcv).** REVEAL writes a timelaggedcv `config.yaml` and builds a
 `CV_autoencoder`:
 - one network per CV: ReLU feature mask → Linear(p, 50) → Tanh → 3 × [Linear(50, 50) → Tanh] → Linear(50, 1)
 - decoder: Linear(n_cv, 200) → ELU → 6 × [Linear(200, 200) → ELU] → Linear(200, p)
 - loss: L2 reconstruction of x_{t+τ} + VAMP-2 + CV range penalty + mask sparsity
 
-Training is the same `CVEstimator.fit_routine`: pretrain, then sparsity rounds until each CV keeps
+Training uses `CVEstimator.fit_routine`: pretrain, then sparsity rounds until each CV keeps
 `--target-n-feat` features, then an unconstrained retrain. Predictions use mask noise off, and
-feature weights are the mask kernels (`net.get_kernel`). Defaults are `tae_gvec.py`'s values
-(target 30 features, 1500 steps, 2 rounds, patience 2, λ step 0.2, batch 1024, lr 1e-3, weight decay
-0.1). Every architecture value can be changed (`--cv-width`, `--cv-depth`, `--width`, `--n-res-blocks`,
-`--residual`, `--sigma-bin`, `--sigma-feat-mask`, `--vamp-loss`, `--vamp-loss-weight`).
-`tae_gvec.py` was unseeded; REVEAL seeds torch/NumPy/random (`--seed`, default 0).
+feature weights are the mask kernels (`net.get_kernel`). Defaults (target 30 features, 1500 steps,
+2 rounds, patience 2, λ step 0.2, batch 1024, lr 1e-3, weight decay 0.1) match the reference
+implementation this reproduces (see `tests/legacy_tae_gvec.py` and `test_tae_matches_tae_gvec` in
+the test suite). Every architecture value can be changed (`--cv-width`, `--cv-depth`, `--width`,
+`--n-res-blocks`, `--residual`, `--sigma-bin`, `--sigma-feat-mask`, `--vamp-loss`,
+`--vamp-loss-weight`). The reference implementation was unseeded; REVEAL seeds
+torch/NumPy/random (`--seed`, default 0).
 
-Outputs: `projection.npz`, plus `tae_gvec.py`'s files: `tae_latent.npy/.pkl`, `tae_weights.npy/.pkl`,
-`model_final.pt` (with `model_full.pt`, `model_final_best.pt`, `temp_path_model_constraint.pt`,
-`bottleneck_scatter.png`, `lightning_logs/` from timelaggedcv), and `export_feature_weights.py`'s
-`CV_file{n}.yaml` and `Feature_weights_{n}_labeled.png`.
+Outputs: `projection.npz`, plus the original script's files: `tae_latent.npy/.pkl`,
+`tae_weights.npy/.pkl`, `model_final.pt` (with `model_full.pt`, `model_final_best.pt`,
+`temp_path_model_constraint.pt`, `bottleneck_scatter.png`, `lightning_logs/` from timelaggedcv),
+and `CV_file{n}.yaml` / `Feature_weights_{n}_labeled.png` (the per-feature mask weights).
 
 ## 3. MSM weights (optional)
 
@@ -168,7 +169,7 @@ reveal pwcs -i FPCA=out/fpca/projection.npz --weights out/msm_fpca/msm_weights.n
 ```
 
 * **Feature sets.** `--mode joint` (default) makes each `-i` one set, 1D or 2D. `--mode separate`
-  makes every column its own 1D set; this is what the original `pwcs.py` did with CV1_pivot and
+  makes every column its own 1D set; this is what the original reference implementation did with CV1_pivot and
   CV1_deltaD. `--mode both` does both. Sets with more than 2 dimensions are refused unless you pass
   `--allow-high-dim`.
 * **Weighting.** Without `--msm`/`--weights`, every frame counts equally. With weights, each GMM is
@@ -318,19 +319,20 @@ original trajectory file, with all strides undone.
 
 ## Validation
 
-Automated (`pytest tests/`, run on a synthetic 12-nt system with a slow loop flip):
+`pytest tests/` builds a synthetic 12-nt system with a slow loop flip and checks:
 
-* G/R-vectors match the `rg_vectors.py` math to float32 precision, with chunked + strided reading
-  and per-trajectory PDBs whose atom order differs.
-* PWCS matches the original `pwcs.py` (verbatim copy in `tests/legacy_pwcs.py`), per-frame and weighted.
-* FPCA (skfda backend) equals a direct `fpca_gvec.py`-style skfda call.
+* G/R-vectors match the reference Bottaro/Herron formulas to float32 precision, with chunked +
+  strided reading and per-trajectory PDBs whose atom order differs.
+* PWCS matches the original reference implementation (preserved verbatim in
+  `tests/legacy_pwcs.py`), per-frame and weighted.
+* FPCA (skfda backend) equals a direct skfda `FPCA` call on the same data.
 * SFA: every sksfa route equals native SFA on full-rank data (τ = 1 and 3, equal and unequal
   lengths, cross-boundaries), and `--cross-boundaries` equals a direct `SFA(n).fit(X, tau=3)` call
   with the bundled mdml sksfa.
 * The bundled sksfa has the `tau` patch, and TAE imports the bundled timelaggedcv.
-* TAE: `reveal reduce tae` gives bit-identical CVs and kernel weights to `tae_gvec.py`
-  (verbatim copy in `tests/legacy_tae_gvec.py`) with the same seed. If mdml's own timelaggedcv is
-  installed, tae_gvec.py runs on it; otherwise on the bundled copy.
+* TAE: `reveal reduce tae` gives bit-identical CVs and kernel weights to the reference
+  implementation (preserved verbatim in `tests/legacy_tae_gvec.py`) with the same seed. If mdml's
+  own timelaggedcv is installed, the reference script runs on it; otherwise on the bundled copy.
 * msm → pwcs `--weights` gives the same scores as pwcs `--msm`. Stride alignment and `extract` work.
 * PWCS on a user variable (flat `.npy` + `--lengths`, text file) with user weights (flat `.npy`,
   `arr_*` `.npz`, text, already-strided) equals `pwcs_score` called directly on the same frames and
@@ -339,23 +341,3 @@ Automated (`pytest tests/`, run on a synthetic 12-nt system with a slow loop fli
   direct `pwcs_score` call. Lengths taken from per-trajectory weights equal an explicit `--lengths` run.
 * `reveal lengths` counts frames from `.xtc`/`.dcd` files (with and without `--stride`), splits a
   COLVAR at time restarts, reads datasets, and its `--out` file works as `--lengths FILE`.
-
-One-off checks run during development (not in the test suite):
-
-* PWCS on `cv1_cv2_part1.npz` (stride 50) matches `pwcs.py` to 5e-15, per-frame and weighted.
-* PWCS on CV1 / (CV1, CV2) from `cv1_cv2_part1.npz`, given as a flat `.npy` and as a PLUMED-style
-  COLVAR text file, with deeptime MSM weights computed outside REVEAL on every frame (as `.npy`,
-  `np.savez(*list)` `.npz` and text), `--stride 10`: identical to a direct `pwcs_score` call (0.0 for
-  `.npy`; 4e-6 for the 6-decimal text file).
-* Native FPCA equals skfda (weights to 2e-14).
-* After bundling, with mdml and sklearn-sfa uninstalled and REVEAL installed from the zip: TAE
-  (300-step run, and a run through the final retrain) and SFA (τ = 3, `--cross-boundaries`) are
-  bit-identical (max |diff| = 0) to the earlier runs made with mdml's installed timelaggedcv and sksfa.
-* mdml's `CV_autoencoder` with `tae_gvec.py`'s settings and 1,860 G-vector features (31 nt) has
-  725.5 K / 832.0 K parameters for 1 / 2 CVs, matching `logs/run_full.log`.
-* TAE vs `tae_gvec.py` (same seed, synthetic system), every training phase compared:
-  - Full defaults (1500 steps, 2 rounds, target 30): network weights identical (max |diff| = 0)
-    after pretraining and after the first sparsity round. This run was stopped after about 40 min
-    on CPU, before finishing.
-  - Target 250, 400 steps, 3 rounds, λ step 2.0, which reaches the final unconstrained retrain:
-    CVs and kernel weights identical (max |diff| = 0), 41 and 8 active features in both.

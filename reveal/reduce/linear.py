@@ -3,9 +3,9 @@ Linear reductions: functional PCA and slow feature analysis.
 
 FPCA
 ----
-As in fpca_gvec.py, each frame's feature vector is treated as a function
-sampled on the feature-index grid t = 0..p-1 and decomposed with FPCA.
-The native implementation reproduces skfda.FPCA on an FDataGrid without
+Each frame's feature vector is treated as a function sampled on the
+feature-index grid t = 0..p-1 and decomposed with FPCA. The native
+implementation reproduces skfda.FPCA on an FDataGrid without
 regularization: Simpson-rule quadrature weights w on the grid (exactly
 scipy.integrate.simpson(I, x=grid), as skfda computes them), PCA of
 (X - mean) * sqrt(w), components phi = v / sqrt(w) (so that the weighted
@@ -15,16 +15,16 @@ Default backend: skfda itself; --backend native is the NumPy re-implementation
 
 SFA
 ---
-Slow feature analysis (Wiskott & Sejnowski 2002), as in sfa_gvec.py:
-whiten X, then find the directions in whitened space whose lag-tau
-differences have the smallest variance; outputs are unit-variance,
-decorrelated and ordered slowest first, written in affine form
-y = W x + b (same convention as sksfa's affine_parameters()).
+Slow feature analysis (Wiskott & Sejnowski 2002): whiten X, then find the
+directions in whitened space whose lag-tau differences have the smallest
+variance; outputs are unit-variance, decorrelated and ordered slowest
+first, written in affine form y = W x + b (same convention as sksfa's
+affine_parameters()).
 Default backend: sksfa (see sfa_sksfa for how exact lag-tau, within-
 trajectory SFA is obtained from stock sksfa). The native NumPy version
-also differences only *within* trajectories. sfa_gvec.py differenced the
-concatenated array, which adds spurious jumps at every trajectory
-boundary; --cross-boundaries restores that legacy behaviour.
+also differences only *within* trajectories; --cross-boundaries instead
+differences the concatenated array across trajectory boundaries (legacy
+behaviour, kept for compatibility with earlier pipelines).
 Rank-deficient inputs (G-vector columns that are always beyond the
 cutoff, linear dependencies) are handled by dropping whitening
 directions with eigenvalue < rcond * max.
@@ -74,7 +74,7 @@ def fpca_native(X: np.ndarray, n_components: int, rule: str = "simpson"):
 
 
 def fpca_skfda(X: np.ndarray, n_components: int, seed: int = 0):
-    """skfda.FPCA on an FDataGrid, as in fpca_gvec.py.
+    """skfda.FPCA on an FDataGrid.
 
     skfda's internal sklearn PCA uses svd_solver='auto', which picks a randomized SVD for
     some data shapes (e.g. 2400 x 264) and draws from NumPy's global RNG; NumPy is seeded
@@ -164,8 +164,8 @@ def sfa_sksfa(trajs, n_components: int, tau: int = 1, cross_boundaries: bool = F
     with stock sksfa (lag 1 only). Both difference *whatever array they are given*, i.e.
     across trajectory boundaries when trajectories are concatenated. Routes:
 
-    cross_boundaries=True     fit(X, tau) on the concatenated frames -> exactly sfa_gvec.py
-                              with mdml's sksfa (stock sksfa: tau=1 only)
+    cross_boundaries=True     fit(X, tau) on the concatenated frames -- crosses trajectory
+                              boundaries (legacy behaviour; stock sksfa: tau=1 only)
     tau == 1, equal lengths   fit(X) with batch_size = trajectory length: sksfa's standard
                               method, differences only inside each trajectory. (Not used for
                               tau > 1: in mdml's patch the batch_size path still uses lag 1.)

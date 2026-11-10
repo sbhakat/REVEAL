@@ -2,7 +2,7 @@
 R-vector and G-vector nucleobase-pair featurization.
 
 Definitions follow Bottaro, Di Palma & Bussi (NAR 2014) and Herron et al.
-(RNAnneal, 2026), exactly as in the standalone rg_vectors.py:
+(RNAnneal, 2026):
 
   ring center  c_i = mean(N1, C2, N3, C4, C5, C6) of residue i
                (six-membered ring shared by A, G, C, U -> one name lookup
@@ -17,10 +17,10 @@ Definitions follow Bottaro, Di Palma & Bussi (NAR 2014) and Herron et al.
 Only the i<j upper triangle is stored, flattened pair-major / component-
 minor, so column names are  G_<res_i>-<res_j>_<comp>.
 
-r_c defaults to 15 A (see rg_vectors.py for the TAR calibration that set it).
+r_c defaults to 15 A, the value calibrated against HIV-1 TAR.
 
-What REVEAL adds over the standalone script
--------------------------------------------
+Implementation notes
+---------------------
 * one global topology OR one topology per trajectory (or a manifest file);
   ring-atom indices are resolved per topology, and every topology must give
   the same residue sequence so columns mean the same thing in every traj

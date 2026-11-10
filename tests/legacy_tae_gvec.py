@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 """
-Time-lagged autoencoder (TAE) on the RNA G-vector features, using the local
-copy of `timelaggedcv` (vendored from
-/Users/shrayvats/Documents/AlloTec/andreas/timelaggedcv) -- the same VAMP2
-CV-autoencoder machinery used in Distances/ML-Distances/autoencoder_distances.py,
-here applied to the precomputed G-vector dataset described in
-Traning-data-RNA/README.md instead of re-derived contact distances.
+Time-lagged autoencoder (TAE) on precomputed G-vector features, using the
+`timelaggedcv` VAMP2 CV-autoencoder (imported as a regular package -- see
+`import timelaggedcv` below). This is the reference implementation that
+`reveal reduce tae` reproduces bit-for-bit (see tests/test_reveal.py); it is
+kept here, frozen, purely as a regression-test fixture.
 
 For each (lag time, latent dimension) combination requested, this:
     1. Trains a sparse CV_autoencoder (VAMP2 objective + reconstruction +
@@ -22,7 +21,7 @@ Outputs per combination, written to --out-dir/tau{T}_dim{D}/:
     model_final.pt           trained estimator checkpoint
 
 Usage:
-    python tae_gvec.py --taus 1 10 50 --latent-dims 1 2 --stride 20
+    python legacy_tae_gvec.py --taus 1 10 50 --latent-dims 1 2 --stride 20
 """
 import argparse
 import glob
@@ -79,9 +78,7 @@ def build_config(n_feat, feature_names, n_cv, features_path, config_path="config
 
     The "dihedrals" key name is a quirk of
     timelaggedcv/dataset/utils.py:set_feature_mean_std, which hardcodes that
-    key regardless of actual feature type (see
-    Distances/ML-Distances/autoencoder_distances.py's build_config for the
-    same workaround used there for contact distances). The per-feature dicts
+    key regardless of actual feature type. The per-feature dicts
     here just carry the G-vector feature name for interpretability; no atom
     indices are needed since CV_decoder_features is a plain MLP from the
     bottleneck to the full feature vector, not a physical/atom-based decoder.
@@ -263,7 +260,7 @@ def plot_results(W, bott_all, feature_names, n_cv, top_k, tau):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", default="../Traning-data-RNA")
+    parser.add_argument("--data-dir", default="../data")
     parser.add_argument("--cache-dir", default="./data")
     parser.add_argument("--out-dir", default="./results")
     parser.add_argument("--stride", type=int, default=20,

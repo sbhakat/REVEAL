@@ -20,9 +20,9 @@ reveal featurize --traj-dir "$DATA" --top "$TOP" --stride $STRIDE --out-prefix $
 # ---- 2. dimensionality reduction on G-vectors ---------------------------
 reveal reduce fpca     -i $OUT/rg_g.npz -n 2                 -o $OUT/fpca         # skfda (default), no lag
 reveal reduce sfa      -i $OUT/rg_g.npz -n 2 --tau 1         -o $OUT/sfa          # sksfa (default)
-# sfa_gvec.py behaviour (mdml sksfa, differences across trajectory boundaries):
+# legacy behaviour (differences across trajectory boundaries):
 #   reveal reduce sfa -i $OUT/rg_g.npz -n 2 --tau 10 --cross-boundaries -o $OUT/sfa_legacy
-reveal reduce tae      -i $OUT/rg_g.npz -n 1 2 --lag 1 10 50 -o $OUT/tae   # mdml timelaggedcv, as tae_gvec.py; scan -> tau*_dim*/
+reveal reduce tae      -i $OUT/rg_g.npz -n 1 2 --lag 1 10 50 -o $OUT/tae   # mdml's timelaggedcv; scan several lags/dims -> tau*_dim*/
 
 # ---- 3. MSM on a 1D/2D variable -> per-frame weights ---------------------
 reveal msm -i TAE=$OUT/tae/tau10_dim2/projection.npz --k 200 --lag 10 -o $OUT/msm_tae
