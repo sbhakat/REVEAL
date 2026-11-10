@@ -2,15 +2,15 @@
 Markov state models on any low-dimensional variables (CVs, FPCA/SFA/TAE
 projections, ...), producing per-frame equilibrium weights.
 
-Method (same as hivtar.ipynb / build_tae_msm*.py / pwcs.py --use-msm-weights):
-k-means microstates -> (Bayesian) reversible MSM at lag tau -> per-frame
-trajectory weights  w_t = pi_{s(t)} / N_{s(t)}  (stationary probability of
-the frame's microstate divided by that microstate's frame count), so a
-weighted histogram over frames reproduces the MSM equilibrium distribution.
-Frames in microstates outside the largest connected set get weight 0.
+Method: k-means microstates -> (Bayesian) reversible MSM at lag tau ->
+per-frame trajectory weights  w_t = pi_{s(t)} / N_{s(t)}  (stationary
+probability of the frame's microstate divided by that microstate's frame
+count), so a weighted histogram over frames reproduces the MSM equilibrium
+distribution. Frames in microstates outside the largest connected set get
+weight 0.
 
 Backend: deeptime (default; maintained successor of pyemma). If deeptime is
-missing, pyemma is used with the exact calls from the original scripts.
+missing, pyemma is used instead (cluster_kmeans + bayesian_markov_model).
 """
 from __future__ import annotations
 

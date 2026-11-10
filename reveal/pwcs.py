@@ -4,8 +4,8 @@ Population-Weighted Consensus Score (PWCS).
 Per-frame consensus metric that averages normalized log-likelihoods across
 several feature-set / density-model combinations: a frame well supported
 under many featurizations and model complexities scores high, a frame that
-is an outlier under most of them scores low. (Same algorithm as pwcs.py,
-formerly "RNAnneal score".)
+is an outlier under most of them scores low. (Also known as the RNAnneal
+score; see tests/legacy_pwcs.py for the original reference implementation.)
 
 For every feature set v (here: a 1D or 2D variable -- CV1, CV2, (CV1, CV2),
 an FPCA/SFA/TAE projection, ...) and every GMM size d in d_range:
@@ -69,7 +69,7 @@ def normalized_loglik(X, n_components, weights=None, resample_factor=5, random_s
 def pwcs_score(feature_sets: Dict[str, np.ndarray], d_range=range(2, 9), weights=None,
                resample_factor=5, random_state=0, return_components=False, max_fit_frames=None,
                covariance_type="full", n_init=1, verbose=False):
-    """PWCS for every frame. See module docstring; signature-compatible with pwcs.py."""
+    """PWCS for every frame. See the module docstring for the algorithm."""
     names = list(feature_sets)
     n_frames = feature_sets[names[0]].shape[0]
     for name in names:

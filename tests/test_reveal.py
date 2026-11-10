@@ -76,7 +76,7 @@ def test_sksfa_routes_match_native(kw):
 
 
 def test_fpca_equals_direct_skfda(work):
-    """REVEAL's skfda backend reproduces a direct fpca_gvec.py-style skfda call."""
+    """REVEAL's skfda backend reproduces a direct skfda FPCA call on the same data."""
     skfda = pytest.importorskip("skfda")
     from skfda.preprocessing.dim_reduction import FPCA
     from reveal.io import load_dataset
@@ -92,7 +92,7 @@ def test_fpca_equals_direct_skfda(work):
 
 
 def test_sfa_cross_boundaries_equals_direct_sksfa(work):
-    """--cross-boundaries reproduces sfa_gvec.py's call sksfa.SFA(n).fit(X, tau=tau) (mdml build,
+    """--cross-boundaries reproduces a direct sksfa.SFA(n).fit(X, tau=tau) call (mdml build,
     here the copy bundled in reveal._vendor)."""
     from reveal._vendor import sksfa
     from reveal.io import load_dataset
@@ -118,10 +118,12 @@ def test_reduce_methods(work, method, extra):
 
 
 def test_tae_matches_tae_gvec(work):
-    """REVEAL's TAE == tae_gvec.py (verbatim copy in tests/legacy_tae_gvec.py), same seed.
+    """REVEAL's TAE == the reference implementation (verbatim copy in tests/legacy_tae_gvec.py),
+    same seed.
 
-    tae_gvec.py does `from timelaggedcv import ...`. If mdml's timelaggedcv is installed, that one
-    is used (bundled copy vs mdml's); otherwise the bundled copy is registered under that name.
+    The reference script does `from timelaggedcv import ...`. If mdml's timelaggedcv is installed,
+    that one is used (bundled copy vs mdml's); otherwise the bundled copy is registered under that
+    name.
     """
     pytest.importorskip("torch")
     import importlib
