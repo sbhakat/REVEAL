@@ -11,8 +11,9 @@ trajectories + PDB(s) ──► featurize ──► reduce (FPCA | SFA | TAE) �
 ```
 
 Every step reads and writes the same `.npz` layout (`traj_00, traj_01, …` in sorted trajectory order,
-plus feature names and provenance), so any output can feed any later step. Your existing files
-(`cv1_cv2.npz`, `rg_vectors_g_part*.npz`, `fpca_transformed.pkl`, `tae_latent.npy`, …) load directly.
+plus feature names and provenance), so any output can feed any later step. Legacy files from earlier,
+non-public versions of this pipeline (plain `.npz`/`.pkl`/`.npy` CV, feature, and latent-variable
+dumps) load directly, with no conversion step.
 
 ## Install
 
@@ -121,9 +122,9 @@ the test suite). Every architecture value can be changed (`--cv-width`, `--cv-de
 `--vamp-loss-weight`). The reference implementation was unseeded; REVEAL seeds
 torch/NumPy/random (`--seed`, default 0).
 
-Outputs: `projection.npz`, plus the original script's files: `tae_latent.npy/.pkl`,
-`tae_weights.npy/.pkl`, `model_final.pt` (with `model_full.pt`, `model_final_best.pt`,
-`temp_path_model_constraint.pt`, `bottleneck_scatter.png`, `lightning_logs/` from timelaggedcv),
+Outputs: `projection.npz`, plus legacy-format copies (`tae_latent.npy/.pkl`, `tae_weights.npy/.pkl`)
+and timelaggedcv's own files (`model_final.pt`, `model_full.pt`, `model_final_best.pt`,
+`temp_path_model_constraint.pt`, `bottleneck_scatter.png`, `lightning_logs/`),
 and `CV_file{n}.yaml` / `Feature_weights_{n}_labeled.png` (the per-feature mask weights).
 
 ## 3. MSM weights (optional)
@@ -137,9 +138,11 @@ MSM engine: **deeptime** (tested with 0.4.5). REVEAL calls `deeptime.clustering.
 `sliding` for `--ml`), keeps the largest connected set, and fits `deeptime.markov.msm.BayesianMSM`
 (default) or `MaximumLikelihoodMSM(reversible=True)`. Per-frame weights come from
 `compute_trajectory_weights` (for the Bayesian MSM, from its maximum-likelihood prior model).
-If deeptime is not installed, REVEAL falls back to the pyemma calls from your original scripts
-(`cluster_kmeans`, `bayesian_markov_model`, `trajectory_weights`). That fallback is untested here,
-because pyemma does not install on Python 3.13.
+If deeptime is not installed, REVEAL falls back to the equivalent pyemma calls
+(`cluster_kmeans`, `bayesian_markov_model`, `trajectory_weights`). This fallback path has no
+automated test coverage: pyemma's build tooling uses `configparser` APIs removed in Python 3.12,
+and (once that is patched) fails to compile against newer deeptime releases, so it cannot be
+installed in this project's Python >= 3.12 test environment.
 
 It writes `msm_weights.npz` (per-frame weights w_t = π_s(t) / N_s(t),
 summing to 1), `implied_timescales.png`, `landscape.png` (raw vs MSM-reweighted), `msm.pkl` and
@@ -149,7 +152,8 @@ summing to 1), `implied_timescales.png`, `landscape.png` (raw vs MSM-reweighted)
 
 For each feature set (a 1D or 2D variable) and each GMM size d in `--d-min…--d-max` (default 2–8):
 fit a GMM, score every frame (L_i), normalize to (L_i − min L)/std(L), then average over all
-(set, d) models. The result is numerically identical to the standalone `pwcs.py`.
+(set, d) models. The result is numerically identical to the reference implementation this
+reproduces (preserved verbatim in `tests/legacy_pwcs.py`).
 
 ```bash
 # per-frame (no MSM): every frame counts equally
@@ -266,7 +270,8 @@ How REVEAL matches them to the variable:
 
 With weights, each GMM is fit on a weighted resample of the frames (`--resample-factor`, default
 5 × n_frames, capped by `--max-fit-frames`), σ_L is the weighted standard deviation, and every frame is
-still scored. This is the same algorithm as `pwcs.py --use-msm-weights`. The weights actually used
+still scored. This is the same algorithm as the reference implementation's MSM-weighted mode
+(`tests/legacy_pwcs.py`). The weights actually used
 are saved in `pwcs_score.npz` (`weights`) and listed per frame in `pwcs_frames.csv`.
 
 ## 6. Finding `--lengths`: `reveal lengths`
